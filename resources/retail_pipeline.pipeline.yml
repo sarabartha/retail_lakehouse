@@ -1,0 +1,14 @@
+resources:
+  pipelines:
+    retail_pipeline:
+      name: retail_pipeline
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.retail_schema.name}
+      serverless: true
+      configuration:
+        min_order_date: ${var.min_order_date}
+      libraries:
+        - file:
+            path: ../src/pipeline/bronze_silver.py
+        - file:
+            path: ../src/pipeline/gold.sql

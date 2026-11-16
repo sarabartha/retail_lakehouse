@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    retail_job:
+      name: retail_job
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${resources.schemas.retail_schema.name}
+      tasks:
+        - task_key: refresh_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.retail_pipeline.id}
+
+        - task_key: check_gold
+          depends_on:
+            - task_key: refresh_pipeline
+          notebook_task:
+            notebook_path: ../src/checks/check_gold.py
