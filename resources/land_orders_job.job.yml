@@ -1,0 +1,13 @@
+resources:
+  jobs:
+    land_orders_job:
+      name: land_orders_job
+      parameters:
+        - name: landing_path
+          default: /Volumes/${var.catalog}/${resources.schemas.retail_schema.name}/landing/orders
+        - name: month
+          default: "1998-01"
+      tasks:
+        - task_key: land_orders
+          notebook_task:
+            notebook_path: ../src/tools/land_orders.py
