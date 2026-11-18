@@ -10,8 +10,11 @@ gold = spark.read.table(table)
 rows = gold.count()
 segments = gold.select("market_segment").distinct().count()
 negative = gold.filter("revenue <= 0").count()
+impossible = gold.filter("urgent_orders > orders").count()
+
 
 assert rows > 0, f"{table} is empty"
 assert segments == 5, f"Expected 5 market segments, found {segments}"
 assert negative == 0, f"{negative} rows have revenue <= 0"
+assert impossible == 0, f"{impossible} rows have more urgent orders than total orders"
 print(f"OK: {rows} rows, {segments} segments")
