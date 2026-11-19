@@ -8,7 +8,7 @@ table = f"{catalog}.{schema}.gold_revenue_by_segment"
 gold = spark.read.table(table)
 
 rows = gold.count()
-segments = gold.select("market_segmnt").distinct().count()
+segments = gold.select("market_segment").distinct().count()
 negative = gold.filter("revenue <= 0").count()
 impossible = gold.filter("urgent_orders > orders").count()
 
