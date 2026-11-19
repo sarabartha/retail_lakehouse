@@ -32,6 +32,16 @@ targets:
       schema: retail_ci
       min_order_date: "1998-01-01"
 
+  staging:
+    workspace:
+      host: https://dbc-7cb97bd5-753f.cloud.databricks.com
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/staging
+    presets:
+      name_prefix: "[staging] "
+    variables:
+      schema: retail_staging
+      min_order_date: "1995-01-01"
+
   prod:
     mode: production
     workspace:

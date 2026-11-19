@@ -3,11 +3,16 @@ name: Retail CI/CD
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to deploy
+        type: choice
+        options: [staging, prod]
+        default: staging
 
 concurrency:
-  group: retail-${{ github.event_name }}
+  group: retail-${{ github.event_name }}-${{ inputs.target }}
   cancel-in-progress: false
 
 env:
@@ -25,12 +30,21 @@ jobs:
       - run: databricks bundle deploy -t ci
       - run: databricks bundle run -t ci retail_job
 
-  deploy-prod:
-    if: github.event_name == 'push'
+  release:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
     steps:
+      - name: Check where this release comes from
+        run: |
+          if [ "${{ inputs.target }}" = "staging" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Staging releases must run from main."; exit 1
+          fi
+          if [ "${{ inputs.target }}" = "prod" ] && [[ "${{ github.ref }}" != refs/tags/RTL-v* ]]; then
+            echo "Prod releases must run from a version tag like RTL-v1.0.0."; exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
-      - run: databricks bundle validate -t prod
-      - run: databricks bundle deploy -t prod
-      - run: databricks bundle run -t prod retail_job
+      - run: databricks bundle validate -t ${{ inputs.target }}
+      - run: databricks bundle deploy -t ${{ inputs.target }}
+      - run: databricks bundle run -t ${{ inputs.target }} retail_job

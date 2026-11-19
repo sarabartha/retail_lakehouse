@@ -20,6 +20,15 @@ def bronze_customers():
 @dp.expect_or_drop("positive_price", "o_totalprice > 0")
 @dp.expect_or_fail("has_order_key", "o_orderkey IS NOT NULL")
 def silver_orders():
+    """Validated orders from the configured start date.
+
+    Reads bronze_orders as a stream and keeps orders on or after
+    the pipeline setting min_order_date. Expectations drop orders
+    with a non-positive price and fail the update on missing keys.
+
+    Returns:
+        A streaming DataFrame of validated orders.
+    """
     min_date = spark.conf.get("min_order_date")
     return (
         spark.readStream.table("bronze_orders")
