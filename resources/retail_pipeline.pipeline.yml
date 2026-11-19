@@ -7,6 +7,7 @@ resources:
       serverless: true
       configuration:
         min_order_date: ${var.min_order_date}
+        landing_path: /Volumes/${var.catalog}/${resources.schemas.retail_schema.name}/landing/orders
       libraries:
         - file:
             path: ../src/pipeline/bronze_silver.py

@@ -7,8 +7,14 @@ resources:
           default: ${var.catalog}
         - name: schema
           default: ${resources.schemas.retail_schema.name}
+        - name: landing_path
+          default: /Volumes/${var.catalog}/${resources.schemas.retail_schema.name}/landing/orders
+        - name: month
+          default: "1998-01"
       tasks:
         - task_key: refresh_pipeline
+          depends_on:
+            - task_key: land_orders
           pipeline_task:
             pipeline_id: ${resources.pipelines.retail_pipeline.id}
 
@@ -17,3 +23,6 @@ resources:
             - task_key: refresh_pipeline
           notebook_task:
             notebook_path: ../src/checks/check_gold.py
+        - task_key: land_orders
+          notebook_task:
+            notebook_path: ../src/tools/land_orders.py

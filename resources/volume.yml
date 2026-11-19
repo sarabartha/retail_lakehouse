@@ -1,0 +1,6 @@
+resources:
+  volumes:
+    landing:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.retail_schema.name}
+      name: landing
