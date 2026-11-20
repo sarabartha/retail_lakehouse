@@ -23,12 +23,24 @@ jobs:
   test-in-ci:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    needs: quality
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
       - run: databricks bundle validate -t ci
       - run: databricks bundle deploy -t ci
       - run: databricks bundle run -t ci retail_job
+
+  quality:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run pytest
+
 
   release:
     if: github.event_name == 'workflow_dispatch'
