@@ -4,6 +4,7 @@ from pyspark.sql import functions as F
 
 @dp.table(comment="Bronze: raw orders, loaded incrementally")
 def bronze_orders():
+    """Load raw orders incrementally from the sample table."""
     return (
         spark.readStream.table("samples.tpch.orders")
         .withColumn("ingested_at", F.current_timestamp())
@@ -12,6 +13,7 @@ def bronze_orders():
 
 @dp.materialized_view(comment="Bronze: raw customers")
 def bronze_customers():
+    """Load raw customers from the sample table."""
     return spark.read.table("samples.tpch.customer")
 
 
@@ -37,6 +39,7 @@ def silver_orders():
 
 @dp.table(comment="Bronze: orders landed as CSV files, loaded with Auto Loader")
 def bronze_orders_files():
+    """Load landed CSV order files incrementally with Auto Loader."""
     return (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "csv")
@@ -51,5 +54,6 @@ def bronze_orders_files():
 @dp.materialized_view(comment="Silver: customers with a known segment")
 @dp.expect_or_drop("known_segment", "c_mktsegment IS NOT NULL")
 def silver_customers():
+    """Keep only customers with a known market segment."""
     return spark.read.table("bronze_customers")
 

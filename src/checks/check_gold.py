@@ -1,20 +1,14 @@
 # Databricks notebook source
+
+from gold_rules import find_gold_problems
+
 dbutils.widgets.text("catalog", "test_catalog")
 dbutils.widgets.text("schema", "")
 catalog = dbutils.widgets.get("catalog")
 schema = dbutils.widgets.get("schema")
 
-table = f"{catalog}.{schema}.gold_revenue_by_segment"
-gold = spark.read.table(table)
 
-rows = gold.count()
-segments = gold.select("market_segment").distinct().count()
-negative = gold.filter("revenue <= 0").count()
-impossible = gold.filter("urgent_orders > orders").count()
-
-
-assert rows > 0, f"{table} is empty"
-assert segments == 5, f"Expected 5 market segments, found {segments}"
-assert negative == 0, f"{negative} rows have revenue <= 0"
-assert impossible == 0, f"{impossible} rows have more urgent orders than total orders"
-print(f"OK: {rows} rows, {segments} segments")
+gold = spark.read.table(f"{catalog}.{schema}.gold_revenue_by_segment")
+problems = find_gold_problems(gold)
+assert not problems, "Gold checks failed: " + "; ".join(problems)
+print("OK: all gold checks passed")
