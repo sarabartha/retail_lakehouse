@@ -5,9 +5,8 @@ from pyspark.sql import functions as F
 @dp.table(comment="Bronze: raw orders, loaded incrementally")
 def bronze_orders():
     """Load raw orders incrementally from the sample table."""
-    return (
-        spark.readStream.table("samples.tpch.orders")
-        .withColumn("ingested_at", F.current_timestamp())
+    return spark.readStream.table("samples.tpch.orders").withColumn(
+        "ingested_at", F.current_timestamp()
     )
 
 
@@ -32,10 +31,8 @@ def silver_orders():
         A streaming DataFrame of validated orders.
     """
     min_date = spark.conf.get("min_order_date")
-    return (
-        spark.readStream.table("bronze_orders")
-        .filter(F.col("o_orderdate") >= min_date)
-    )
+    return spark.readStream.table("bronze_orders").filter(F.col("o_orderdate") >= min_date)
+
 
 @dp.table(comment="Bronze: orders landed as CSV files, loaded with Auto Loader")
 def bronze_orders_files():
@@ -51,9 +48,9 @@ def bronze_orders_files():
         .withColumn("ingested_at", F.current_timestamp())
     )
 
+
 @dp.materialized_view(comment="Silver: customers with a known segment")
 @dp.expect_or_drop("known_segment", "c_mktsegment IS NOT NULL")
 def silver_customers():
     """Keep only customers with a known market segment."""
     return spark.read.table("bronze_customers")
-

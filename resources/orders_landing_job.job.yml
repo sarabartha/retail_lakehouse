@@ -1,0 +1,13 @@
+resources:
+  jobs:
+    orders_landing_job:
+      name: orders_landing_job
+      parameters:
+        - name: landing_path
+          default: /Volumes/${var.catalog}/${resources.schemas.orders_raw.name}/landing/orders
+        - name: day
+          default: "1998-01-01"
+      tasks:
+        - task_key: land_orders_day
+          notebook_task:
+            notebook_path: ../src/orders_cdp/land_orders_day.py

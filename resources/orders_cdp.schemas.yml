@@ -1,0 +1,17 @@
+resources:
+  schemas:
+    orders_raw:
+      catalog_name: ${var.catalog}
+      name: cdp_orders_raw
+    orders_processed:
+      catalog_name: ${var.catalog}
+      name: cdp_orders_processed
+    orders_serve:
+      catalog_name: ${var.catalog}
+      name: cdp_orders
+
+  volumes:
+    orders_landing:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.orders_raw.name}
+      name: landing
