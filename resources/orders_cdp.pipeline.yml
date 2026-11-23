@@ -1,0 +1,16 @@
+resources:
+  pipelines:
+    orders_cdp:
+      name: orders_cdp
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.orders_raw.name}
+      serverless: true
+      configuration:
+        catalog: ${var.catalog}
+        raw_schema: ${resources.schemas.orders_raw.name}
+        processed_schema: ${resources.schemas.orders_processed.name}
+        serve_schema: ${resources.schemas.orders_serve.name}
+        landing_path: /Volumes/${var.catalog}/${resources.schemas.orders_raw.name}/landing/orders
+      libraries:
+        - file:
+            path: ../src/orders_cdp/orders_pipeline.py
