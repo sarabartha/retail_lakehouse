@@ -27,5 +27,5 @@ convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src/checks"]
+pythonpath = ["sales/retail_lakehouse_rtl/src/checks"]
 
