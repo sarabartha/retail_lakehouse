@@ -1,0 +1,86 @@
+name: Deploy Databricks Asset Bundle
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Product to deploy
+        type: choice
+        options:
+          - sales/retail_lakehouse_rtl
+          - sales/orders_ord
+      target:
+        description: Target environment
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+concurrency:
+  group: deploy-${{ github.event_name }}-${{ inputs.product }}-${{ inputs.target }}
+  cancel-in-progress: false
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+jobs:
+  quality:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: "17"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  test-in-ci:
+    needs: quality
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - product: sales/retail_lakehouse_rtl
+            job: retail_job
+          - product: sales/orders_ord
+            job: orders_job
+    defaults:
+      run:
+        working-directory: ${{ matrix.product }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle validate -t ci
+      - run: databricks bundle deploy -t ci
+      - run: databricks bundle run -t ci ${{ matrix.job }}
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.product }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check where this release comes from
+        run: |
+          short=$(basename "${{ inputs.product }}" | awk -F_ '{print toupper($NF)}')
+          if [ "${{ inputs.target }}" = "staging" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Staging releases must run from main."; exit 1
+          fi
+          if [ "${{ inputs.target }}" = "prod" ] && [[ "${{ github.ref_name }}" != "$short"-v* ]]; then
+            echo "Prod releases of this product need a tag like $short-v1.0.0."; exit 1
+          fi
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle validate -t ${{ inputs.target }}
+      - run: databricks bundle deploy -t ${{ inputs.target }}

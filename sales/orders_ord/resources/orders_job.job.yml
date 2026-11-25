@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    orders_job:
+      name: orders_job
+      parameters:
+        - name: landing_path
+          default: /Volumes/${var.cdp_catalog}/${resources.schemas.orders_raw.name}/landing/orders
+        - name: day
+          default: "1998-01-01"
+      tasks:
+        - task_key: land_orders_day
+          notebook_task:
+            notebook_path: ../src/orders_cdp/land_orders_day.py
+        - task_key: refresh_orders_cdp
+          depends_on:
+            - task_key: land_orders_day
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.orders_cdp.id}
+        - task_key: refresh_orders_star
+          depends_on:
+            - task_key: refresh_orders_cdp
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.orders_star.id}
