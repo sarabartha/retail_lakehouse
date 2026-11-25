@@ -1,13 +1,26 @@
 # retail_lakehouse
 
-A practice data product on Databricks: a medallion-style retail lakehouse built as a
-Lakeflow Declarative Pipeline, defined as code with Databricks Asset Bundles, and
-tested and released through GitHub Actions.
+Practice data products on Databricks, built as Lakeflow Declarative Pipelines, defined as
+code with Databricks Asset Bundles, and tested and released through GitHub Actions.
 
-It uses the public TPC-H sample data (`samples.tpch.orders` and `samples.tpch.customer`),
-so no real or sensitive data is involved.
+The repository is a monorepo: each data product lives in its own folder under its domain
+(`sales/`) and is deployed as its own bundle.
 
-## What it does
+All products use the public TPC-H sample data (`samples.tpch.orders` and
+`samples.tpch.customer`), so no real or sensitive data is involved.
+
+## Data products
+
+| Product | Folder | Short name | Bundle | Main job |
+|---------|--------|------------|--------|----------|
+| Retail lakehouse | `sales/retail_lakehouse_rtl` | `RTL` | `retail_lakehouse` | `retail_job` |
+| Orders | `sales/orders_ord` | `ORD` | `orders` | `orders_job` |
+
+The short name at the end of the folder name is used for release tags (see [CI/CD](#cicd)).
+
+### Retail lakehouse (`RTL`)
+
+A medallion-style lakehouse with revenue per market segment as its result.
 
 ```
 samples.tpch.orders ──► CSV files in a landing volume ──► bronze ──► silver ──► gold
@@ -28,28 +41,56 @@ samples.tpch.customer ───────────────────�
 
 Everything runs as one job, `retail_job`: land files → refresh pipeline → check gold.
 
+### Orders (`ORD`)
+
+A core data product for orders, plus a star schema data set built on top of it.
+
+```
+samples.tpch.orders ──► JSON files in a landing volume ──► raw ──► processed ──► serve ──► orders_star
+```
+
+- **Landing:** `land_orders_day` drops one day of orders as JSON lines into the `landing`
+  volume.
+- **Raw** (`sales_raw` schema): each landed line loaded untouched, with load metadata.
+- **Processed** (`sales_processed` schema): the JSON parsed, keeping only the most recently
+  loaded copy of each order.
+- **Serve** (`sales` schema): typed, readable, source-aligned columns. Expectations drop
+  non-positive prices (`positive_price`) and fail on missing order keys (`has_order_key`).
+- **Star schema** (`orders_star` schema, in the data sets catalog): `fact_orders`,
+  `dim_customer` and `dim_date`, built from the serve layer.
+
+The core data product lives in the core data products catalog (`cdp_catalog`), and the star
+schema in the data sets catalog (`datasets_catalog`).
+
+`orders_job` runs land one day → refresh `orders_cdp` → refresh `orders_star`.
+
 ## Repository structure
 
 ```
 retail_lakehouse/
-├── .github/workflows/ci.yml        # PR checks and manual releases
-├── databricks.yml                  # bundle settings, variables and targets
-├── resources/
-│   ├── schema.yml                  # the schema, created by the bundle
-│   ├── volume.yml                  # landing volume for source files
-│   ├── retail_pipeline.pipeline.yml
-│   ├── retail_job.job.yml
-│   └── land_orders_job.job.yml
-├── src/
-│   ├── pipeline/                   # bronze, silver and gold definitions
-│   ├── checks/                     # check_gold notebook and gold_rules module
-│   └── tools/                      # land_orders notebook (fake source system)
-├── tests/                          # unit tests (pytest)
-├── pyproject.toml, uv.lock         # Python tooling, managed by uv
-└── .python-version                 # Python 3.12
+├── .github/workflows/deploy.yml        # PR checks and manual releases, for all products
+├── sales/
+│   ├── retail_lakehouse_rtl/
+│   │   ├── databricks.yml              # bundle settings, variables and targets
+│   │   ├── resources/                  # schema, volume, pipeline and jobs
+│   │   └── src/
+│   │       ├── pipeline/               # bronze, silver and gold definitions
+│   │       ├── checks/                 # check_gold notebook and gold_rules module
+│   │       └── tools/                  # land_orders notebook (fake source system)
+│   └── orders_ord/
+│       ├── databricks.yml
+│       ├── resources/                  # schemas, volume, pipelines and jobs
+│       └── src/
+│           ├── orders_cdp/             # landing notebook and raw/processed/serve pipeline
+│           └── datasets/               # orders star schema pipeline
+├── tests/                              # unit tests (pytest)
+├── pyproject.toml, uv.lock             # Python tooling for the whole repo, managed by uv
+└── .python-version                     # Python 3.12
 ```
 
 ## Environments
+
+Each product has the same four targets in its `databricks.yml`:
 
 | Target    | Purpose                                   | Data loaded  | Deployed by                     |
 |-----------|-------------------------------------------|--------------|---------------------------------|
@@ -61,23 +102,32 @@ retail_lakehouse/
 Dev, ci and staging load less history to keep runs fast and cheap. The amount is set by
 the `min_order_date` variable per target.
 
+| Target    | Core data products catalog   | Data sets catalog   |
+|-----------|------------------------------|---------------------|
+| `dev`/`ci`| `dev_core_data_products`     | `dev_datasets`      |
+| `staging` | `staging_core_data_products` | `staging_datasets`  |
+| `prod`    | `core_data_products`         | `datasets`          |
+
 ## Getting started
 
-Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), the Databricks CLI, and
-access to the workspace.
+Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), Java 17 (for local PySpark
+tests), the Databricks CLI, and access to the workspace.
 
 ```bash
-# Install the development tools from the lock file
+# Install the development tools from the lock file (from the repo root)
 uv sync --locked
 
 # Log in to the workspace (opens a browser)
 databricks auth login --host <workspace-url>
 
-# Deploy and run your own dev copy
+# Deploy and run your own dev copy of a product, from its folder
+cd sales/retail_lakehouse_rtl        # or sales/orders_ord
 databricks bundle validate
 databricks bundle deploy -t dev
-databricks bundle run -t dev retail_job
+databricks bundle run -t dev retail_job   # or orders_job
 ```
+
+Bundle commands only work from inside a product folder, where its `databricks.yml` is.
 
 ## Development workflow
 
@@ -91,13 +141,15 @@ This repo follows trunk-based development:
 5. When the checks are green and the PR is approved, merge with **Squash and merge**.
    The PR title and description become the commit on `main`.
 
+`main` is protected: changes reach it only through pull requests.
+
 Commit messages use a capitalized summary of about 50 characters in imperative mood
 ("Add …", not "Added …"), a blank line, then a body explaining what and why, wrapped at
 72 characters.
 
 ## Quality checks
 
-Run these before pushing:
+Run these from the repo root before pushing:
 
 ```bash
 uv run ruff check .          # lint: errors, naming, Google-style docstrings
@@ -107,36 +159,39 @@ uv run pytest                # unit tests (needs Java 17 for local PySpark)
 
 ## CI/CD
 
-The workflow in `.github/workflows/ci.yml` has two parts.
+The workflow in `.github/workflows/deploy.yml` (*Deploy Databricks Asset Bundle*) has two
+parts.
 
 **On every pull request into `main`:**
 
-1. `quality`: Ruff lint and format check, and unit tests.
-2. `test-in-ci`: deploys the bundle to the `ci` target and runs `retail_job` on real
-   sample data, including the gold checks.
+1. `quality`: Ruff lint and format check, and unit tests, once for the whole repo.
+2. `test-in-ci`: for each product, one at a time, deploys the bundle to the `ci` target
+   and runs its main job on real sample data.
 
 Both must pass before a pull request can be merged.
 
-**Releases (manual, through workflow dispatch):**
+**Releases (manual, through workflow dispatch), one product at a time:**
 
-1. **Staging:** Actions → *Retail CI/CD* → *Run workflow*, use workflow from `main`,
-   target `staging`.
+1. **Staging:** Actions → *Deploy Databricks Asset Bundle* → *Run workflow*, use workflow
+   from `main`, choose the product and target `staging`.
 2. **Tag the release** once staging looks right, with the product short name and a
    semantic version:
 
    ```bash
-   git tag -a RTL-v1.0.0 -m "Describe the release"
+   git tag -a RTL-v1.0.0 -m "Describe the release"    # or ORD-v1.0.0
    git push origin RTL-v1.0.0
    ```
 
-3. **Prod:** *Run workflow* from the tag, target `prod`. The run waits for approval
-   in the `prod` environment before deploying.
+3. **Prod:** *Run workflow* from the tag, choose the same product and target `prod`.
+   The run waits for approval in the `prod` environment before deploying.
 
 The workflow refuses staging releases from anything but `main`, and prod releases from
-anything but an `RTL-v*` tag.
+anything but a tag matching the product, such as `RTL-v*` for the retail lakehouse or
+`ORD-v*` for orders.
 
 ## Conventions
 
+- One folder per data product, named `<product>_<short name>`, under its domain folder
 - Python 3.12, matching serverless environment version 4 and DBR 17.3 LTS
 - lower snake_case for files, folders, tables, jobs and variables
 - Google-style docstrings and type hints for Python functions
