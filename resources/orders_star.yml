@@ -1,0 +1,17 @@
+resources:
+  schemas:
+    orders_star_schema:
+      catalog_name: ${var.datasets_catalog}
+      name: orders_star
+
+  pipelines:
+    orders_star:
+      name: orders_star
+      catalog: ${var.datasets_catalog}
+      schema: ${resources.schemas.orders_star_schema.name}
+      serverless: true
+      configuration:
+        cdp_serve: ${var.cdp_catalog}.${resources.schemas.orders_serve.name}
+      libraries:
+        - file:
+            path: ../src/datasets/orders_star.sql

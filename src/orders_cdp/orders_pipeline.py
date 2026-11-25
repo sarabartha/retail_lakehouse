@@ -17,7 +17,10 @@ ORDER_SCHEMA = (
 )
 
 
-@dp.table(name=f"{RAW}.orders", comment="Raw: order files as delivered, with load metadata")
+@dp.table(
+    name=f"{RAW}.order_management_orders",
+    comment="Raw: order files as delivered, with load metadata",
+)
 def orders_raw():
     """Load each landed JSON line untouched, plus load metadata and privacy fields."""
     return (
@@ -37,12 +40,15 @@ def orders_raw():
     )
 
 
-@dp.materialized_view(name=f"{PROCESSED}.orders_latest", comment="Processed: one row per order")
+@dp.materialized_view(
+    name=f"{PROCESSED}.order_management_orders_latest",
+    comment="Processed: one row per order",
+)
 def orders_latest():
     """Parse the JSON and keep only the most recently loaded copy of each order."""
     latest_first = Window.partitionBy("order_key").orderBy(F.col("ingestion_timestamp").desc())
     return (
-        spark.read.table(f"{RAW}.orders")
+        spark.read.table(f"{RAW}.order_management_orders")
         .withColumn("data", F.from_json("content", ORDER_SCHEMA))
         .withColumn("order_key", F.col("data.o_orderkey"))
         .withColumn("row_number", F.row_number().over(latest_first))
@@ -51,12 +57,15 @@ def orders_latest():
     )
 
 
-@dp.materialized_view(name=f"{SERVE}.orders", comment="Serve: flattened, typed orders")
+@dp.materialized_view(
+    name=f"{SERVE}.order_management_orders",
+    comment="Serve: flattened, typed orders",
+)
 @dp.expect_or_fail("has_order_key", "order_key IS NOT NULL")
 @dp.expect_or_drop("positive_price", "total_price > 0")
 def orders_serve():
     """Flatten processed orders into typed, readable, source-aligned columns."""
-    return spark.read.table(f"{PROCESSED}.orders_latest").select(
+    return spark.read.table(f"{PROCESSED}.order_management_orders_latest").select(
         "ingestion_timestamp",
         "file_path",
         "file_name",

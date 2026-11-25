@@ -11,6 +11,11 @@ variables:
     description: Schema for this environment
   min_order_date:
     description: Only orders from this date onwards are loaded
+  cdp_catalog:
+    description: Catalog for core data products in this lifecycle stage
+  datasets_catalog:
+    description: Catalog for data sets in this lifecycle stage
+
 
 targets:
   dev:
@@ -19,6 +24,8 @@ targets:
     workspace:
       host: https://dbc-7cb97bd5-753f.cloud.databricks.com
     variables:
+      cdp_catalog: dev_core_data_products
+      datasets_catalog: dev_datasets
       schema: retail_dev
       min_order_date: "1998-01-01"
 
@@ -31,6 +38,8 @@ targets:
     variables:
       schema: retail_ci
       min_order_date: "1998-01-01"
+      cdp_catalog: dev_core_data_products      # add
+      datasets_catalog: dev_datasets           # add
 
   staging:
     workspace:
@@ -39,6 +48,8 @@ targets:
     presets:
       name_prefix: "[staging] "
     variables:
+      cdp_catalog: staging_core_data_products
+      datasets_catalog: staging_datasets
       schema: retail_staging
       min_order_date: "1995-01-01"
 
@@ -48,5 +59,7 @@ targets:
       host: https://dbc-7cb97bd5-753f.cloud.databricks.com
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/prod
     variables:
+      cdp_catalog: core_data_products
+      datasets_catalog: datasets
       schema: retail_prod
       min_order_date: "1992-01-01"
