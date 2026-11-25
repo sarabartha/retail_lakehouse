@@ -4,7 +4,7 @@ resources:
       name: orders_landing_job
       parameters:
         - name: landing_path
-          default: /Volumes/${var.catalog}/${resources.schemas.orders_raw.name}/landing/orders
+          default: /Volumes/${var.cdp_catalog}/${resources.schemas.orders_raw.name}/landing/orders
         - name: day
           default: "1998-01-01"
       tasks:
