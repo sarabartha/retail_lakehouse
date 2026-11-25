@@ -12,4 +12,4 @@ resources:
         - file:
             path: ../src/pipeline/bronze_silver.py
         - file:
-            path: ../src/pipeline/gold.sql
+            path: ../src/pipeline/gold.py

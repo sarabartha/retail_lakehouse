@@ -14,4 +14,4 @@ resources:
         cdp_serve: ${var.cdp_catalog}.${resources.schemas.orders_serve.name}
       libraries:
         - file:
-            path: ../src/datasets/orders_star.sql
+            path: ..\src\datasets\orders_star.py
